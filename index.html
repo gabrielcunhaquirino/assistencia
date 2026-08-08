@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TecnoOS — Sistema de Assistência Técnica</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *{font-family:'Inter',system-ui,sans-serif}
+  body{background:#0b1020}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-track{background:#0f172a}
+  ::-webkit-scrollbar-thumb{background:#334155;border-radius:8px}
+  ::-webkit-scrollbar-thumb:hover{background:#475569}
+  .glass{background:rgba(255,255,255,.04);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.08)}
+  .card{background:linear-gradient(160deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08)}
+  .fade{animation:f .35s ease}
+  @keyframes f{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .navlink.active{background:linear-gradient(90deg,rgba(59,130,246,.25),rgba(59,130,246,.05));color:#fff;border-left:3px solid #3b82f6}
+  input,select,textarea{color-scheme:dark}
+  @media print{
+    body{background:#fff!important}
+    .no-print{display:none!important}
+    #recibo-area{position:fixed;inset:0;background:#fff;color:#000;padding:0;margin:0;overflow:visible;z-index:9999}
+    @page{margin:14mm}
+  }
+</style>
+</head>
+<body class="text-slate-200">
+
+<!-- ============ TELA DE BLOQUEIO (KILL SWITCH) ============ -->
+<div id="tela-bloqueio" class="hidden fixed inset-0 z-[100] bg-slate-950 flex items-center justify-center p-6">
+  <div class="max-w-lg w-full card rounded-2xl p-10 text-center">
+    <div class="w-16 h-16 mx-auto rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center mb-6">
+      <svg class="w-8 h-8 text-red-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/></svg>
+    </div>
+    <h1 class="text-2xl font-bold text-white mb-3">Acesso indisponível</h1>
+    <p id="bloqueio-msg" class="text-slate-400 leading-relaxed mb-8">Este sistema está temporariamente inativo. Entre em contato com o fornecedor para reativação.</p>
+    <div class="text-xs text-slate-600 border-t border-white/5 pt-5">
+      Código: <span id="bloqueio-cod" class="font-mono">LIC-000</span>
+    </div>
+    <button onclick="abrirAdmin()" class="mt-6 text-[11px] text-slate-700 hover:text-slate-500">·</button>
+  </div>
+</div>
+
+<!-- ============ LOGIN ============ -->
+<div id="tela-login" class="hidden fixed inset-0 z-50 flex items-center justify-center p-6"
+     style="background:radial-gradient(1000px 600px at 20% 0%,rgba(59,130,246,.18),transparent),radial-gradient(900px 600px at 100% 100%,rgba(168,85,247,.15),transparent),#0b1020">
+  <div class="w-full max-w-md">
+    <div class="text-center mb-8">
+      <div id="login-logo" class="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center mb-4 shadow-lg shadow-blue-500/25">
+        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.42 15.17 17.25 21A2.652 2.652 0 0 0 21 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 1 1-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 0 0 4.486-6.336l-3.276 3.277a3.004 3.004 0 0 1-2.25-2.25l3.276-3.276a4.5 4.5 0 0 0-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.001m-1.745 1.437 1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008Z"/></svg>
+      </div>
+      <h1 id="login-titulo" class="text-2xl font-bold text-white">TecnoOS</h1>
+      <p class="text-sm text-slate-500 mt-1">Sistema de Assistência Técnica</p>
+    </div>
+    <div class="card rounded-2xl p-7">
+      <form onsubmit="fazerLogin(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1.5">Usuário</label>
+          <input id="li-user" autocomplete="username" class="w-full bg-slate-900/70 border border-white/10 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="admin">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1.5">Senha</label>
+          <input id="li-pass" type="password" autocomplete="current-password" class="w-full bg-slate-900/70 border border-white/10 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="••••••">
+        </div>
+        <p id="li-erro" class="hidden text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2"></p>
+        <button class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-sm rounded-lg py-2.5 transition shadow-lg shadow-blue-600/20">Entrar</button>
+      </form>
+      <div class="mt-5 pt-5 border-t border-white/5 text-center">
+        <p class="text-[11px] text-slate-600">Versão demonstrativa · acesso: <span class="font-mono text-slate-500">admin / 1234</span></p>
+      </div>
+    </div>
+    <p class="text-center text-[11px] text-slate-700 mt-6">
+      Ambiente de avaliação <button onclick="abrirAdmin()" class="hover:text-slate-500">·</button>
+    </p>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app" class="hidden min-h-screen" style="background:radial-gradient(1200px 700px at 10% -10%,rgba(59,130,246,.10),transparent),#0b1020">
+  <div class="flex min-h-screen">
+
+    <!-- SIDEBAR -->
+    <aside class="no-print w-60 shrink-0 glass border-r border-white/5 flex flex-col fixed h-screen z-30 -translate-x-full lg:translate-x-0 transition-transform" id="sidebar">
+      <div class="p-5 border-b border-white/5">
+        <div class="flex items-center gap-3">
+          <div id="side-logo" class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.42 15.17 17.25 21A2.652 2.652 0 0 0 21 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 1 1-3.586-3.586l6.837-5.63"/></svg>
+          </div>
+          <div class="min-w-0">
+            <p id="side-nome" class="font-bold text-white text-sm truncate">TecnoOS</p>
+            <p class="text-[10px] text-slate-500">Assistência Técnica</p>
+          </div>
+        </div>
+      </div>
+      <nav class="flex-1 py-4 space-y-0.5 overflow-y-auto">
+        <a onclick="irPara('dashboard')" data-nav="dashboard" class="navlink cursor-pointer flex items-center gap-3 px-5 py-2.5 text-sm text-slate-400 hover:text-white transition border-l-3 border-transparent">
+          <svg class="w-4.5 h-4.5" style="width:18px;height:18px" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z"/></svg>
+          Dashboard
+        </a>
+        <a onclick="irPara('os')" data-nav="os" class="navlink cursor-pointer flex items-center gap-3 px-5 py-2.5 text-sm text-slate-400 hover:text-white transition border-l-3 border-transparent">
+          <svg style="width:18px;height:18px" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/></svg>
+          Ordens de Serviço
+          <span id="badge-os" class="ml-auto text-[10px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded-full font-semibold">0</span>
+        </a>
+        <a onclick="irPara('clientes')" data-nav="clientes" class="navlink cursor-pointer flex items-center gap-3 px-5 py-2.5 text-sm text-slate-400 hover:text-white transition border-l-3 border-transparent">
+          <svg style="width:18px;height:18px" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z"/></svg>
+          Clientes
+        </a>
+        <a onclick="irPara('equipamentos')" data-nav="equipamentos" class="navlink cursor-pointer flex items-center gap-3 px-5 py-2.5 text-sm text-slate-400 hover:text-white transition border-l-3 border-transparent">
+          <svg style="width:18px;height:18px" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25m18 0A2.25 2.25 0 0 0 18.75 3H5.25A2.25 2.25 0 0 0 3 5.25m18 0V12a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 12V5.25"/></svg>
+          Equipamentos
+        </a>
+        <a onclick="irPara('garantias')" data-nav="garantias" class="navlink cursor-pointer flex items-center gap-3 px-5 py-2.5 text-sm text-slate-400 hover:text-white transition border-l-3 border-transparent">
+          <svg style="width:18px;height:18px" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751A11.959 11.959 0 0 1 12 2.714Z"/></svg>
+          Garantias
+          <span id="badge-gar" class="ml-auto text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded-full font-semibold">0</span>
+        </a>
+        <a onclick="irPara('financeiro')" data-nav="financeiro" class="navlink cursor-pointer flex items-center gap-3 px-5 py-2.5 text-sm text-slate-400 hover:text-white transition border-l-3 border-transparent">
+          <svg style="width:18px;height:18px" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+          Financeiro
+        </a>
+        <a onclick="irPara('config')" data-nav="config" class="navlink cursor-pointer flex items-center gap-3 px-5 py-2.5 text-sm text-slate-400 hover:text-white transition border-l-3 border-transparent">
+          <svg style="width:18px;height:18px" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.03 7.03 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.93 6.93 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>
+          Configurações
+        </a>
+      </nav>
+      <div class="p-4 border-t border-white/5">
+        <div id="lic-badge" class="text-[10px] rounded-lg px-3 py-2 mb-3 bg-amber-500/10 border border-amber-500/20 text-amber-400">
+          Licença de avaliação
+        </div>
+        <button onclick="sair()" class="w-full text-xs text-slate-400 hover:text-white flex items-center gap-2 px-1 py-1.5 transition">
+          <svg style="width:16px;height:16px" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75"/></svg>
+          Sair
+        </button>
+      </div>
+    </aside>
+
+    <!-- CONTEÚDO -->
+    <main class="flex-1 lg:ml-60 min-w-0">
+      <header class="no-print sticky top-0 z-20 glass border-b border-white/5 px-5 lg:px-8 py-3.5 flex items-center gap-4">
+        <button onclick="document.getElementById('sidebar').classList.toggle('-translate-x-full')" class="lg:hidden text-slate-400">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5"/></svg>
+        </button>
+        <div class="min-w-0">
+          <h2 id="page-title" class="font-bold text-white text-lg truncate">Dashboard</h2>
+          <p id="page-sub" class="text-xs text-slate-500 truncate">Visão geral da operação</p>
+        </div>
+        <div class="ml-auto flex items-center gap-3">
+          <button onclick="novaOS()" class="hidden sm:flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition shadow-lg shadow-blue-600/20">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            Nova OS
+          </button>
+          <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white" id="avatar">A</div>
+        </div>
+      </header>
+      <div id="conteudo" class="p-5 lg:p-8 fade"></div>
+    </main>
+  </div>
+</div>
+
+<!-- ============ MODAL ============ -->
+<div id="modal" class="hidden no-print fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto">
+  <div class="w-full max-w-2xl my-8 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl fade" id="modal-box"></div>
+</div>
+
+<!-- ============ RECIBO (impressão) ============ -->
+<div id="recibo-area" class="hidden"></div>
+
+<!-- ============ PAINEL ADMIN (só o fornecedor) ============ -->
+<div id="tela-admin" class="hidden fixed inset-0 z-[110] bg-slate-950 overflow-y-auto p-6">
+  <div class="max-w-3xl mx-auto py-8">
+    <div id="admin-login" class="max-w-sm mx-auto card rounded-2xl p-8">
+      <h2 class="text-lg font-bold text-white mb-1">Painel do Fornecedor</h2>
+      <p class="text-xs text-slate-500 mb-6">Acesso restrito ao desenvolvedor.</p>
+      <form onsubmit="loginAdmin(event)" class="space-y-3">
+        <input id="adm-pass" type="password" placeholder="Senha mestra" class="w-full bg-slate-900 border border-white/10 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-purple-500">
+        <p id="adm-erro" class="hidden text-xs text-red-400"></p>
+        <button class="w-full bg-purple-600 hover:bg-purple-500 text-white font-semibold text-sm rounded-lg py-2.5">Acessar</button>
+        <button type="button" onclick="fecharAdmin()" class="w-full text-xs text-slate-500 hover:text-slate-300 pt-1">Voltar</button>
+      </form>
+    </div>
+    <div id="admin-painel" class="hidden"></div>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════
+   ⚙️  CONFIGURAÇÃO DO FORNECEDOR — ALTERE ANTES DE ENTREGAR
+   ══════════════════════════════════════════════════════════════ */
+const LIC = {
+  // Senha do SEU painel de controle (o cliente não deve saber):
+  senhaMestra: "gabriel@2026",
+
+  // URL de licença remota. Deixe "" para não usar.
+  // Aponte para um JSON público que SÓ VOCÊ edita (ex: raw de um GitHub Gist).
+  // Formato esperado:  {"ativo": true, "mensagem": "texto opcional"}
+  // Trocando "ativo" para false, o sistema bloqueia no próximo carregamento.
+  urlLicenca: "licenca.json",
+
+  // Data limite do teste (bloqueia sozinho mesmo offline). Formato AAAA-MM-DD.
+  expiraEm: "2026-09-30",
+
+  // Dias que o sistema continua funcionando sem conseguir consultar a licença.
+  // Impede o cliente de simplesmente ficar offline para burlar o bloqueio.
+  toleranciaOffline: 3,
+
+  codigo: "LIC-DEMO-0001"
+};
+/* ════════════════════════════════════════════════════════════ */
+
+const K = 'tecnoos_v1';
+const brl = n => (n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const hoje = () => new Date().toISOString().slice(0,10);
+const dataBR = d => d ? new Date(d+'T12:00:00').toLocaleDateString('pt-BR') : '—';
+const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const addDias = (d,n) => { const x=new Date(d+'T12:00:00'); x.setDate(x.getDate()+n); return x.toISOString().slice(0,10); };
+const diasEntre = (a,b) => Math.round((new Date(b+'T12:00:00')-new Date(a+'T12:00:00'))/86400000);
+
+const STATUS = {
+  aberto:      {rot:'Aberto',        cor:'bg-blue-500/15 text-blue-300 border-blue-500/25'},
+  orcamento:   {rot:'Orçamento',     cor:'bg-purple-500/15 text-purple-300 border-purple-500/25'},
+  aprovado:    {rot:'Aprovado',      cor:'bg-cyan-500/15 text-cyan-300 border-cyan-500/25'},
+  conserto:    {rot:'Em conserto',   cor:'bg-amber-500/15 text-amber-300 border-amber-500/25'},
+  pronto:      {rot:'Pronto',        cor:'bg-emerald-500/15 text-emerald-300 border-emerald-500/25'},
+  entregue:    {rot:'Entregue',      cor:'bg-slate-500/15 text-slate-300 border-slate-500/25'},
+  cancelado:   {rot:'Cancelado',     cor:'bg-red-500/15 text-red-300 border-red-500/25'}
+};
+
+/* ---------- Estado ---------- */
+let DB = null, TELA='dashboard', chartRef=null;
+
+function carregar(){
+  const raw = localStorage.getItem(K);
+  if(raw){ try{ DB = JSON.parse(raw); }catch(e){ DB=null; } }
+  if(!DB) DB = seed();
+  DB.clientes ||= []; DB.equipamentos ||= []; DB.os ||= [];
+  salvar();
+}
+function salvar(){ localStorage.setItem(K, JSON.stringify(DB)); }
+
+function seed(){
+  const c1=uid(), c2=uid(), c3=uid(), c4=uid();
+  const e1=uid(), e2=uid(), e3=uid(), e4=uid(), e5=uid();
+  const d = n => addDias(hoje(), -n);
+  return {
+    empresa:{ nome:'TecnoOS Assistência', cnpj:'00.000.000/0001-00', telefone:'(00) 00000-0000',
+              email:'contato@empresa.com.br', endereco:'Rua Exemplo, 123 — Centro', logo:'',
+              termos:'A garantia cobre exclusivamente o serviço executado e as peças substituídas descritas nesta ordem de serviço. Não cobre danos por queda, contato com líquidos, oxidação, mau uso, violação do lacre ou intervenção de terceiros.' },
+    usuario:{ user:'admin', senha:'1234', nome:'Administrador' },
+    contador: 1007,
+    clientes:[
+      {id:c1,nome:'Marcos Andrade',telefone:'(11) 98812-4477',email:'marcos.a@email.com',doc:'123.456.789-00',endereco:'Av. Paulista, 900 - São Paulo/SP',criadoEm:d(90)},
+      {id:c2,nome:'Juliana Ferreira',telefone:'(11) 99340-1122',email:'ju.ferreira@email.com',doc:'987.654.321-00',endereco:'Rua das Acácias, 45 - Osasco/SP',criadoEm:d(60)},
+      {id:c3,nome:'Padaria Pão Nosso ME',telefone:'(11) 3355-7788',email:'financeiro@paonosso.com.br',doc:'12.345.678/0001-90',endereco:'Rua do Comércio, 200 - Guarulhos/SP',criadoEm:d(45)},
+      {id:c4,nome:'Renato Lima',telefone:'(11) 97001-3390',email:'renato.lima@email.com',doc:'456.789.123-00',endereco:'Rua Ipiranga, 78 - Santo André/SP',criadoEm:d(12)}
+    ],
+    equipamentos:[
+      {id:e1,clienteId:c1,tipo:'Notebook',marca:'Dell',modelo:'Inspiron 15 3520',serie:'DL5520X99',obs:'Acompanha carregador original'},
+      {id:e2,clienteId:c2,tipo:'Celular',marca:'Samsung',modelo:'Galaxy S22',serie:'SM22-778112',obs:'Sem capa, com película trincada'},
+      {id:e3,clienteId:c3,tipo:'Impressora',marca:'Epson',modelo:'L3250',serie:'EP3250-4471',obs:''},
+      {id:e4,clienteId:c1,tipo:'Desktop',marca:'Positivo',modelo:'Master D570',serie:'PS-D570-118',obs:'Gabinete com poeira acumulada'},
+      {id:e5,clienteId:c4,tipo:'Celular',marca:'Motorola',modelo:'Moto G73',serie:'MTG73-9021',obs:''}
+    ],
+    os:[
+      {id:uid(),numero:1001,clienteId:c1,equipamentoId:e1,defeito:'Não liga. Cliente relata que parou após queda de energia.',
+       diagnostico:'Fonte interna queimada e capacitor da placa estufado. Substituída fonte e recuperada trilha.',
+       tecnico:'Carlos Souza',status:'entregue',garantiaDias:90,abertura:d(75),entrega:d(70),
+       itens:[{desc:'Fonte de alimentação 65W',tipo:'peca',qtd:1,valor:180},{desc:'Mão de obra — reparo em placa',tipo:'servico',qtd:1,valor:150}]},
+      {id:uid(),numero:1002,clienteId:c2,equipamentoId:e2,defeito:'Tela trincada após queda, touch falhando na parte inferior.',
+       diagnostico:'Troca completa do display OLED original.',
+       tecnico:'Ana Beatriz',status:'entregue',garantiaDias:90,abertura:d(40),entrega:d(37),
+       itens:[{desc:'Display OLED Galaxy S22',tipo:'peca',qtd:1,valor:640},{desc:'Serviço de troca de tela',tipo:'servico',qtd:1,valor:160}]},
+      {id:uid(),numero:1003,clienteId:c3,equipamentoId:e3,defeito:'Impressão saindo falhada e com listras horizontais.',
+       diagnostico:'Cabeça de impressão obstruída. Realizada limpeza profunda e troca do kit de mangueiras.',
+       tecnico:'Carlos Souza',status:'entregue',garantiaDias:30,abertura:d(20),entrega:d(18),
+       itens:[{desc:'Kit mangueiras + limpeza',tipo:'peca',qtd:1,valor:95},{desc:'Manutenção preventiva',tipo:'servico',qtd:1,valor:120}]},
+      {id:uid(),numero:1004,clienteId:c1,equipamentoId:e4,defeito:'Desliga sozinho durante uso, muito barulhento.',
+       diagnostico:'Superaquecimento por pasta térmica ressecada e cooler travado.',
+       tecnico:'Ana Beatriz',status:'pronto',garantiaDias:90,abertura:d(6),entrega:'',
+       itens:[{desc:'Cooler processador',tipo:'peca',qtd:1,valor:75},{desc:'Pasta térmica premium',tipo:'peca',qtd:1,valor:35},{desc:'Limpeza completa + troca pasta',tipo:'servico',qtd:1,valor:130}]},
+      {id:uid(),numero:1005,clienteId:c4,equipamentoId:e5,defeito:'Bateria descarrega muito rápido e esquenta ao carregar.',
+       diagnostico:'Bateria com ciclos esgotados. Aguardando chegada da peça.',
+       tecnico:'Carlos Souza',status:'conserto',garantiaDias:90,abertura:d(3),entrega:'',
+       itens:[{desc:'Bateria original Moto G73',tipo:'peca',qtd:1,valor:210},{desc:'Serviço de substituição',tipo:'servico',qtd:1,valor:90}]},
+      {id:uid(),numero:1006,clienteId:c2,equipamentoId:e2,defeito:'Aparelho não carrega, conector com folga.',
+       diagnostico:'',tecnico:'Ana Beatriz',status:'orcamento',garantiaDias:90,abertura:d(1),entrega:'',
+       itens:[{desc:'Conector de carga (estimado)',tipo:'peca',qtd:1,valor:140},{desc:'Mão de obra (estimado)',tipo:'servico',qtd:1,valor:110}]}
+    ]
+  };
+}
+
+/* ---------- Helpers de domínio ---------- */
+const cliente = id => DB.clientes.find(c=>c.id===id) || {nome:'—'};
+const equip   = id => DB.equipamentos.find(e=>e.id===id) || {tipo:'—',marca:'',modelo:''};
+const equipTxt= id => { const e=equip(id); return [e.tipo,e.marca,e.modelo].filter(Boolean).join(' '); };
+const totalOS = o => (o.itens||[]).reduce((s,i)=>s+(i.qtd||1)*(i.valor||0),0);
+function garantiaOS(o){
+  if(o.status!=='entregue' || !o.entrega || !o.garantiaDias) return null;
+  const fim = addDias(o.entrega, o.garantiaDias);
+  const rest = diasEntre(hoje(), fim);
+  return {fim, rest, ativa: rest>=0, alerta: rest>=0 && rest<=15};
+}
+
+/* ══════════ KILL SWITCH ══════════ */
+async function verificarLicenca(){
+  const cache = JSON.parse(localStorage.getItem(K+'_lic') || '{}');
+
+  // 1. Bloqueio local forçado pelo fornecedor
+  if(cache.forcadoOff) return {ok:false, msg:'Este sistema foi desativado pelo fornecedor.'};
+
+  // 2. Validade do período de avaliação
+  if(LIC.expiraEm && hoje() > LIC.expiraEm)
+    return {ok:false, msg:'O período de avaliação deste sistema expirou em '+dataBR(LIC.expiraEm)+'. Entre em contato para liberar a versão definitiva.'};
+
+  // 3. Consulta remota (o fornecedor edita o arquivo para desligar)
+  if(LIC.urlLicenca){
+    try{
+      const r = await fetch(LIC.urlLicenca + (LIC.urlLicenca.includes('?')?'&':'?') + 't=' + Date.now(), {cache:'no-store'});
+      const j = await r.json();
+      localStorage.setItem(K+'_lic', JSON.stringify({...cache, ultimoOk:hoje(), ativo:!!j.ativo, msg:j.mensagem||''}));
+      if(j.ativo === false) return {ok:false, msg: j.mensagem || 'Este sistema foi desativado pelo fornecedor.'};
+    }catch(e){
+      // Offline: tolera por N dias desde a última verificação bem-sucedida
+      const ult = cache.ultimoOk;
+      if(cache.ativo === false) return {ok:false, msg: cache.msg || 'Este sistema foi desativado pelo fornecedor.'};
+      if(ult && diasEntre(ult, hoje()) > LIC.toleranciaOffline)
+        return {ok:false, msg:'Não foi possível validar a licença deste sistema. Conecte-se à internet ou contate o fornecedor.'};
+      if(!ult) localStorage.setItem(K+'_lic', JSON.stringify({...cache, ultimoOk:hoje()}));
+    }
+  }
+  return {ok:true};
+}
+
+function bloquear(msg){
+  document.getElementById('bloqueio-msg').textContent = msg;
+  document.getElementById('bloqueio-cod').textContent = LIC.codigo;
+  document.getElementById('tela-bloqueio').classList.remove('hidden');
+  document.getElementById('tela-login').classList.add('hidden');
+  document.getElementById('app').classList.add('hidden');
+}
+
+/* ══════════ Painel do fornecedor ══════════ */
+function abrirAdmin(){ document.getElementById('tela-admin').classList.remove('hidden'); document.getElementById('adm-pass').focus(); }
+function fecharAdmin(){ document.getElementById('tela-admin').classList.add('hidden'); document.getElementById('admin-painel').classList.add('hidden'); document.getElementById('admin-login').classList.remove('hidden'); document.getElementById('adm-pass').value=''; }
+function loginAdmin(ev){
+  ev.preventDefault();
+  if(document.getElementById('adm-pass').value !== LIC.senhaMestra){
+    const e=document.getElementById('adm-erro'); e.textContent='Senha incorreta.'; e.classList.remove('hidden'); return;
+  }
+  document.getElementById('admin-login').classList.add('hidden');
+  renderAdmin();
+}
+function renderAdmin(){
+  const cache = JSON.parse(localStorage.getItem(K+'_lic')||'{}');
+  const off = !!cache.forcadoOff;
+  const el = document.getElementById('admin-painel');
+  el.classList.remove('hidden');
+  el.innerHTML = `
+  <div class="space-y-5">
+    <div class="flex items-center justify-between">
+      <div><h2 class="text-xl font-bold text-white">Painel do Fornecedor</h2>
+      <p class="text-xs text-slate-500">Controle de licença — invisível para o cliente</p></div>
+      <button onclick="fecharAdmin()" class="text-xs text-slate-400 hover:text-white px-3 py-1.5 border border-white/10 rounded-lg">Fechar</button>
+    </div>
+
+    <div class="card rounded-2xl p-6">
+      <div class="flex items-center justify-between gap-4">
+        <div>
+          <p class="font-semibold text-white">Status neste dispositivo</p>
+          <p class="text-xs text-slate-500 mt-0.5">Desliga imediatamente o acesso nesta máquina.</p>
+        </div>
+        <button onclick="toggleForcado()" class="px-5 py-2.5 rounded-lg font-semibold text-sm ${off?'bg-red-600 hover:bg-red-500':'bg-emerald-600 hover:bg-emerald-500'} text-white">
+          ${off?'DESATIVADO':'ATIVO'}
+        </button>
+      </div>
+    </div>
+
+    <div class="card rounded-2xl p-6 space-y-3">
+      <p class="font-semibold text-white">Desligamento remoto</p>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        Para desligar o sistema <b>de qualquer lugar</b>, edite o arquivo <span class="font-mono text-slate-300">licenca.json</span> publicado junto com o site (pelo celular mesmo) e salve. O cliente é bloqueado no carregamento seguinte.
+      </p>
+      <pre class="bg-slate-950 border border-white/10 rounded-lg p-3 text-[11px] text-emerald-300 overflow-x-auto">{ "ativo": true, "mensagem": "" }</pre>
+      <p class="text-xs text-slate-400">Trocando <span class="font-mono text-red-300">"ativo": false</span>, o sistema bloqueia no próximo carregamento do cliente.</p>
+      <div class="grid grid-cols-2 gap-3 pt-2 text-xs">
+        <div class="bg-slate-950/60 rounded-lg p-3"><span class="text-slate-500">URL configurada</span><br><span class="font-mono text-slate-300 break-all">${LIC.urlLicenca||'— não configurada —'}</span></div>
+        <div class="bg-slate-950/60 rounded-lg p-3"><span class="text-slate-500">Expira em</span><br><span class="font-mono text-slate-300">${dataBR(LIC.expiraEm)} (${diasEntre(hoje(),LIC.expiraEm)} dias)</span></div>
+        <div class="bg-slate-950/60 rounded-lg p-3"><span class="text-slate-500">Última validação</span><br><span class="font-mono text-slate-300">${cache.ultimoOk?dataBR(cache.ultimoOk):'nunca'}</span></div>
+        <div class="bg-slate-950/60 rounded-lg p-3"><span class="text-slate-500">Tolerância offline</span><br><span class="font-mono text-slate-300">${LIC.toleranciaOffline} dias</span></div>
+      </div>
+    </div>
+
+    <div class="card rounded-2xl p-6 flex flex-wrap gap-3">
+      <button onclick="if(confirm('Restaurar os dados de demonstração? Tudo que o cliente cadastrou será apagado.')){localStorage.removeItem('${K}');location.reload()}" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-lg">Restaurar dados de demonstração</button>
+      <button onclick="if(confirm('Apagar TODOS os dados e licença deste dispositivo?')){localStorage.clear();location.reload()}" class="text-xs bg-red-900/60 hover:bg-red-800 text-red-200 px-4 py-2 rounded-lg">Zerar tudo</button>
+    </div>
+  </div>`;
+}
+function toggleForcado(){
+  const c = JSON.parse(localStorage.getItem(K+'_lic')||'{}');
+  c.forcadoOff = !c.forcadoOff;
+  localStorage.setItem(K+'_lic', JSON.stringify(c));
+  renderAdmin();
+  if(c.forcadoOff) alert('Sistema desativado neste dispositivo. Ao recarregar, o cliente verá a tela de bloqueio.');
+}
+
+/* ══════════ Login ══════════ */
+function fazerLogin(ev){
+  ev.preventDefault();
+  const u = document.getElementById('li-user').value.trim();
+  const p = document.getElementById('li-pass').value;
+  if(u===DB.usuario.user && p===DB.usuario.senha){
+    sessionStorage.setItem(K+'_sess','1');
+    entrar();
+  } else {
+    const e=document.getElementById('li-erro'); e.textContent='Usuário ou senha inválidos.'; e.classList.remove('hidden');
+  }
+}
+function sair(){ sessionStorage.removeItem(K+'_sess'); location.reload(); }
+function entrar(){
+  document.getElementById('tela-login').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  document.getElementById('avatar').textContent = (DB.usuario.nome||'A')[0].toUpperCase();
+  aplicarMarca();
+  irPara('dashboard');
+}
+function aplicarMarca(){
+  const e = DB.empresa;
+  document.getElementById('side-nome').textContent = e.nome || 'TecnoOS';
+  document.getElementById('login-titulo').textContent = e.nome || 'TecnoOS';
+  document.title = (e.nome||'TecnoOS') + ' — Assistência Técnica';
+  if(e.logo){
+    ['side-logo','login-logo'].forEach(id=>{
+      const el=document.getElementById(id);
+      el.innerHTML = `<img src="${e.logo}" class="w-full h-full object-contain rounded-xl">`;
+      el.classList.remove('bg-gradient-to-br','from-blue-500','to-indigo-600');
+      el.classList.add('bg-white/5','p-1');
+    });
+  }
+  const d = diasEntre(hoje(), LIC.expiraEm);
+  document.getElementById('lic-badge').innerHTML = `Versão de avaliação<br><span class="opacity-70">${d>0?d+' dias restantes':'expirada'}</span>`;
+}
+
+/* ══════════ Navegação ══════════ */
+const TITULOS = {
+  dashboard:['Dashboard','Visão geral da operação'],
+  os:['Ordens de Serviço','Acompanhe todos os atendimentos'],
+  clientes:['Clientes','Cadastro e histórico'],
+  equipamentos:['Equipamentos','Aparelhos vinculados aos clientes'],
+  garantias:['Garantias','Controle de prazos e vencimentos'],
+  financeiro:['Financeiro','Faturamento e desempenho'],
+  config:['Configurações','Dados da empresa e do sistema']
+};
+function irPara(t){
+  TELA=t;
+  document.querySelectorAll('[data-nav]').forEach(a=>a.classList.toggle('active', a.dataset.nav===t));
+  document.getElementById('page-title').textContent = TITULOS[t][0];
+  document.getElementById('page-sub').textContent = TITULOS[t][1];
+  if(window.innerWidth<1024) document.getElementById('sidebar').classList.add('-translate-x-full');
+  const c = document.getElementById('conteudo');
+  c.classList.remove('fade'); void c.offsetWidth; c.classList.add('fade');
+  ({dashboard:vDashboard,os:vOS,clientes:vClientes,equipamentos:vEquipamentos,garantias:vGarantias,financeiro:vFinanceiro,config:vConfig}[t])();
+  atualizarBadges();
+}
+function atualizarBadges(){
+  const abertas = DB.os.filter(o=>!['entregue','cancelado'].includes(o.status)).length;
+  const gAlerta = DB.os.map(garantiaOS).filter(g=>g&&g.alerta).length;
+  document.getElementById('badge-os').textContent = abertas;
+  const bg = document.getElementById('badge-gar');
+  bg.textContent = gAlerta; bg.classList.toggle('hidden', gAlerta===0);
+}
+
+/* ══════════ Componentes ══════════ */
+const kpi = (rot,val,sub,cor,icon) => `
+<div class="card rounded-2xl p-5">
+  <div class="flex items-start justify-between mb-3">
+    <span class="text-xs font-medium text-slate-400">${rot}</span>
+    <div class="w-9 h-9 rounded-xl ${cor} flex items-center justify-center">${icon}</div>
+  </div>
+  <p class="text-2xl font-bold text-white">${val}</p>
+  <p class="text-[11px] text-slate-500 mt-1">${sub}</p>
+</div>`;
+const badge = s => `<span class="text-[10px] font-semibold px-2 py-1 rounded-md border ${STATUS[s].cor}">${STATUS[s].rot}</span>`;
+const IC = {
+  os:'<svg style="width:18px;height:18px" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M19.5 14.25v-2.6a3.4 3.4 0 0 0-3.4-3.4h-1.5a1.1 1.1 0 0 1-1.1-1.1v-1.5a3.4 3.4 0 0 0-3.4-3.4H8.25"/><path stroke-linecap="round" d="M10.5 2.25H5.6c-.6 0-1.1.5-1.1 1.1v17.3c0 .6.5 1.1 1.1 1.1h12.8c.6 0 1.1-.5 1.1-1.1V11.25a9 9 0 0 0-9-9Z"/></svg>',
+  wrench:'<svg style="width:18px;height:18px" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M11.42 15.17 17.25 21A2.65 2.65 0 0 0 21 17.25l-5.88-5.88"/></svg>',
+  check:'<svg style="width:18px;height:18px" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m4.5 12.75 6 6 9-13.5"/></svg>',
+  money:'<svg style="width:18px;height:18px" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 6v12m-3-2.8.9.7c1.2.9 3.1.9 4.2 0 1.2-.9 1.2-2.3 0-3.2-.6-.4-1.3-.7-2.1-.7s-1.5-.2-2-.7c-1.1-.9-1.1-2.3 0-3.2s2.9-.9 4 0l.4.3"/><circle cx="12" cy="12" r="9"/></svg>',
+  shield:'<svg style="width:18px;height:18px" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M9 12.75 11.25 15 15 9.75M12 2.7A12 12 0 0 1 3.6 6 12 12 0 0 0 3 9.7c0 5.6 3.8 10.3 9 11.6 5.2-1.3 9-6 9-11.6 0-1.3-.2-2.6-.6-3.7A12 12 0 0 1 12 2.7Z"/></svg>',
+  user:'<svg style="width:18px;height:18px" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.5 20.1a7.5 7.5 0 0 1 15 0A16.9 16.9 0 0 1 12 21.75c-2.7 0-5.2-.6-7.5-1.6Z"/></svg>'
+};
+const vazio = (t,s,btn='') => `
+<div class="card rounded-2xl p-14 text-center">
+  <div class="w-14 h-14 mx-auto rounded-2xl bg-white/5 flex items-center justify-center mb-4 text-slate-600">${IC.os}</div>
+  <p class="font-semibold text-white">${t}</p><p class="text-xs text-slate-500 mt-1 mb-5">${s}</p>${btn}</div>`;
+const btnP = (txt,fn) => `<button onclick="${fn}" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow-lg shadow-blue-600/20">${txt}</button>`;
+
+/* ══════════ DASHBOARD ══════════ */
+function vDashboard(){
+  const abertas = DB.os.filter(o=>!['entregue','cancelado'].includes(o.status));
+  const emConserto = DB.os.filter(o=>o.status==='conserto').length;
+  const prontos = DB.os.filter(o=>o.status==='pronto').length;
+  const mes = hoje().slice(0,7);
+  const fatMes = DB.os.filter(o=>o.status==='entregue' && (o.entrega||'').startsWith(mes)).reduce((s,o)=>s+totalOS(o),0);
+  const emAberto = abertas.reduce((s,o)=>s+totalOS(o),0);
+  const gars = DB.os.map(o=>({o,g:garantiaOS(o)})).filter(x=>x.g&&x.g.ativa);
+  const alertas = gars.filter(x=>x.g.alerta);
+  const recentes = [...DB.os].sort((a,b)=>(b.abertura||'').localeCompare(a.abertura||'')).slice(0,6);
+
+  document.getElementById('conteudo').innerHTML = `
+  <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+    ${kpi('OS em aberto', abertas.length, emConserto+' em conserto · '+prontos+' prontas', 'bg-blue-500/15 text-blue-400', IC.os)}
+    ${kpi('Faturamento do mês', brl(fatMes), 'ordens entregues em '+mes.split('-').reverse().join('/'), 'bg-emerald-500/15 text-emerald-400', IC.money)}
+    ${kpi('Valor em serviço', brl(emAberto), 'previsto nas OS não entregues', 'bg-amber-500/15 text-amber-400', IC.wrench)}
+    ${kpi('Garantias ativas', gars.length, alertas.length+' vencendo em até 15 dias', 'bg-purple-500/15 text-purple-400', IC.shield)}
+  </div>
+
+  <div class="grid grid-cols-1 xl:grid-cols-3 gap-5 mb-6">
+    <div class="xl:col-span-2 card rounded-2xl p-5">
+      <p class="font-semibold text-white text-sm mb-4">Faturamento dos últimos 6 meses</p>
+      <div style="height:250px"><canvas id="ch1"></canvas></div>
+    </div>
+    <div class="card rounded-2xl p-5">
+      <p class="font-semibold text-white text-sm mb-4">OS por situação</p>
+      <div style="height:250px"><canvas id="ch2"></canvas></div>
+    </div>
+  </div>
+
+  ${alertas.length ? `
+  <div class="rounded-2xl p-5 mb-6 bg-amber-500/8 border border-amber-500/25">
+    <div class="flex items-center gap-2 mb-3">
+      <span class="text-amber-400">${IC.shield}</span>
+      <p class="font-semibold text-amber-200 text-sm">Garantias vencendo em breve</p>
+    </div>
+    <div class="space-y-2">
+      ${alertas.map(x=>`<div class="flex items-center justify-between text-xs bg-slate-950/40 rounded-lg px-3 py-2">
+        <span class="text-slate-300">OS #${x.o.numero} · ${esc(cliente(x.o.clienteId).nome)} · ${esc(equipTxt(x.o.equipamentoId))}</span>
+        <span class="font-semibold text-amber-300">${x.g.rest} dia(s) — vence ${dataBR(x.g.fim)}</span>
+      </div>`).join('')}
+    </div>
+  </div>`:''}
+
+  <div class="card rounded-2xl overflow-hidden">
+    <div class="px-5 py-4 border-b border-white/5 flex items-center justify-between">
+      <p class="font-semibold text-white text-sm">Ordens recentes</p>
+      <button onclick="irPara('os')" class="text-xs text-blue-400 hover:text-blue-300">Ver todas →</button>
+    </div>
+    ${tabelaOS(recentes)}
+  </div>`;
+
+  // gráficos
+  const meses=[], vals=[];
+  for(let i=5;i>=0;i--){
+    const d=new Date(); d.setDate(1); d.setMonth(d.getMonth()-i);
+    const k=d.toISOString().slice(0,7);
+    meses.push(d.toLocaleDateString('pt-BR',{month:'short'}));
+    vals.push(DB.os.filter(o=>o.status==='entregue'&&(o.entrega||'').startsWith(k)).reduce((s,o)=>s+totalOS(o),0));
+  }
+  new Chart(document.getElementById('ch1'),{type:'bar',data:{labels:meses,datasets:[{data:vals,backgroundColor:'rgba(59,130,246,.65)',borderRadius:6,borderSkipped:false}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>brl(c.raw)}}},
+    scales:{x:{grid:{display:false},ticks:{color:'#64748b',font:{size:11}}},y:{grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'#64748b',font:{size:11},callback:v=>'R$ '+v}}}}});
+
+  const cont={}; DB.os.forEach(o=>cont[o.status]=(cont[o.status]||0)+1);
+  const ks=Object.keys(cont);
+  new Chart(document.getElementById('ch2'),{type:'doughnut',
+    data:{labels:ks.map(k=>STATUS[k].rot),datasets:[{data:ks.map(k=>cont[k]),
+      backgroundColor:['#3b82f6','#a855f7','#06b6d4','#f59e0b','#10b981','#64748b','#ef4444'],borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'bottom',labels:{color:'#94a3b8',font:{size:11},boxWidth:10,padding:12}}}}});
+}
+
+/* ══════════ ORDENS DE SERVIÇO ══════════ */
+function tabelaOS(lista){
+  if(!lista.length) return `<div class="p-10 text-center text-sm text-slate-500">Nenhuma ordem encontrada.</div>`;
+  return `<div class="overflow-x-auto"><table class="w-full text-sm">
+    <thead><tr class="text-[11px] uppercase tracking-wide text-slate-500 border-b border-white/5">
+      <th class="text-left font-medium px-5 py-3">OS</th>
+      <th class="text-left font-medium px-5 py-3">Cliente</th>
+      <th class="text-left font-medium px-5 py-3 hidden md:table-cell">Equipamento</th>
+      <th class="text-left font-medium px-5 py-3 hidden lg:table-cell">Abertura</th>
+      <th class="text-left font-medium px-5 py-3">Situação</th>
+      <th class="text-right font-medium px-5 py-3">Total</th>
+      <th class="px-5 py-3"></th>
+    </tr></thead><tbody>
+    ${lista.map(o=>`<tr class="border-b border-white/5 hover:bg-white/[.03] transition">
+      <td class="px-5 py-3 font-mono text-xs text-slate-400">#${o.numero}</td>
+      <td class="px-5 py-3 text-white font-medium">${esc(cliente(o.clienteId).nome)}</td>
+      <td class="px-5 py-3 text-slate-400 hidden md:table-cell">${esc(equipTxt(o.equipamentoId))}</td>
+      <td class="px-5 py-3 text-slate-500 text-xs hidden lg:table-cell">${dataBR(o.abertura)}</td>
+      <td class="px-5 py-3">${badge(o.status)}</td>
+      <td class="px-5 py-3 text-right font-semibold text-white">${brl(totalOS(o))}</td>
+      <td class="px-5 py-3 text-right whitespace-nowrap">
+        <button onclick="editarOS('${o.id}')" class="text-xs text-blue-400 hover:text-blue-300 px-2">Abrir</button>
+        <button onclick="imprimirOS('${o.id}')" class="text-xs text-slate-400 hover:text-white px-2">Imprimir</button>
+      </td>
+    </tr>`).join('')}
+    </tbody></table></div>`;
+}
+let filtroOS='todas';
+function vOS(){
+  const l = filtroOS==='todas' ? DB.os
+        : filtroOS==='abertas' ? DB.os.filter(o=>!['entregue','cancelado'].includes(o.status))
+        : DB.os.filter(o=>o.status===filtroOS);
+  const ord = [...l].sort((a,b)=>b.numero-a.numero);
+  const fbtn = (k,r) => `<button onclick="filtroOS='${k}';vOS()" class="text-xs px-3 py-1.5 rounded-lg transition ${filtroOS===k?'bg-blue-600 text-white':'bg-white/5 text-slate-400 hover:text-white'}">${r}</button>`;
+  document.getElementById('conteudo').innerHTML = `
+  <div class="flex flex-wrap items-center gap-2 mb-5">
+    ${fbtn('todas','Todas')}${fbtn('abertas','Em aberto')}
+    ${Object.keys(STATUS).map(k=>fbtn(k,STATUS[k].rot)).join('')}
+    <div class="ml-auto">${btnP('+ Nova OS','novaOS()')}</div>
+  </div>
+  <div class="card rounded-2xl overflow-hidden">${tabelaOS(ord)}</div>`;
+}
+
+function novaOS(){ formOS(null); }
+function editarOS(id){ formOS(DB.os.find(o=>o.id===id)); }
+let itensTmp = [];
+function formOS(o){
+  const novo = !o;
+  o = o || {id:null,numero:DB.contador+1,clienteId:DB.clientes[0]?.id||'',equipamentoId:'',defeito:'',diagnostico:'',
+            tecnico:'',status:'aberto',garantiaDias:90,abertura:hoje(),entrega:'',itens:[]};
+  itensTmp = JSON.parse(JSON.stringify(o.itens||[]));
+  abrirModal(`
+  <div class="px-6 py-5 border-b border-white/5 flex items-center justify-between">
+    <div><p class="font-bold text-white">${novo?'Nova Ordem de Serviço':'OS #'+o.numero}</p>
+    <p class="text-xs text-slate-500">${novo?'Preencha os dados do atendimento':'Editar atendimento'}</p></div>
+    <button onclick="fecharModal()" class="text-slate-500 hover:text-white text-xl leading-none">&times;</button>
+  </div>
+  <form onsubmit="salvarOS(event,'${o.id||''}')" class="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      ${campoSel('f-cli','Cliente', DB.clientes.map(c=>[c.id,c.nome]), o.clienteId, 'onchange="carregarEquips()"')}
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Equipamento</label>
+        <select id="f-eq" class="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500"></select>
+      </div>
+    </div>
+    ${campoTxt('f-def','Defeito relatado pelo cliente', o.defeito, 'textarea')}
+    ${campoTxt('f-diag','Diagnóstico técnico', o.diagnostico, 'textarea')}
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      ${campoTxt('f-tec','Técnico', o.tecnico)}
+      ${campoSel('f-st','Situação', Object.keys(STATUS).map(k=>[k,STATUS[k].rot]), o.status)}
+      ${campoTxt('f-ab','Abertura', o.abertura,'date')}
+      ${campoTxt('f-ent','Entrega', o.entrega,'date')}
+    </div>
+    ${campoTxt('f-gar','Garantia (dias após a entrega)', o.garantiaDias,'number')}
+
+    <div class="border border-white/10 rounded-xl p-4">
+      <div class="flex items-center justify-between mb-3">
+        <p class="text-xs font-semibold text-slate-300">Peças e serviços</p>
+        <button type="button" onclick="addItem()" class="text-xs text-blue-400 hover:text-blue-300">+ Adicionar item</button>
+      </div>
+      <div id="itens-lista" class="space-y-2"></div>
+      <div class="flex justify-end mt-3 pt-3 border-t border-white/5">
+        <p class="text-sm">Total: <span id="itens-total" class="font-bold text-white text-lg ml-2">R$ 0,00</span></p>
+      </div>
+    </div>
+
+    <div class="flex gap-3 pt-2">
+      <button class="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-sm rounded-lg py-2.5">Salvar</button>
+      ${!novo?`<button type="button" onclick="imprimirOS('${o.id}')" class="px-5 bg-white/5 hover:bg-white/10 text-slate-200 text-sm rounded-lg">Imprimir</button>
+      <button type="button" onclick="excluirOS('${o.id}')" class="px-5 bg-red-900/40 hover:bg-red-900/70 text-red-300 text-sm rounded-lg">Excluir</button>`:''}
+    </div>
+  </form>`);
+  carregarEquips(o.equipamentoId);
+  renderItens();
+}
+const campoTxt=(id,rot,val='',tipo='text')=>tipo==='textarea'
+  ? `<div><label class="block text-xs font-medium text-slate-400 mb-1.5">${rot}</label><textarea id="${id}" rows="2" class="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500">${esc(val)}</textarea></div>`
+  : `<div><label class="block text-xs font-medium text-slate-400 mb-1.5">${rot}</label><input id="${id}" type="${tipo}" value="${esc(val)}" class="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500"></div>`;
+const campoSel=(id,rot,opts,val,extra='')=>`<div><label class="block text-xs font-medium text-slate-400 mb-1.5">${rot}</label><select id="${id}" ${extra} class="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500">${opts.map(([v,r])=>`<option value="${v}" ${v===val?'selected':''}>${esc(r)}</option>`).join('')}</select></div>`;
+
+function carregarEquips(sel){
+  const cid = document.getElementById('f-cli').value;
+  const list = DB.equipamentos.filter(e=>e.clienteId===cid);
+  document.getElementById('f-eq').innerHTML = list.length
+    ? list.map(e=>`<option value="${e.id}" ${e.id===sel?'selected':''}>${esc([e.tipo,e.marca,e.modelo].filter(Boolean).join(' '))}</option>`).join('')
+    : `<option value="">— cliente sem equipamento cadastrado —</option>`;
+}
+function addItem(){ itensTmp.push({desc:'',tipo:'peca',qtd:1,valor:0}); renderItens(); }
+function delItem(i){ itensTmp.splice(i,1); renderItens(); }
+function upItem(i,c,v){ itensTmp[i][c] = (c==='qtd'||c==='valor') ? parseFloat(v)||0 : v; totalItens(); }
+function totalItens(){ document.getElementById('itens-total').textContent = brl(itensTmp.reduce((s,i)=>s+i.qtd*i.valor,0)); }
+function renderItens(){
+  const el=document.getElementById('itens-lista'); if(!el) return;
+  el.innerHTML = itensTmp.length ? itensTmp.map((it,i)=>`
+    <div class="grid grid-cols-12 gap-2 items-center">
+      <input value="${esc(it.desc)}" oninput="upItem(${i},'desc',this.value)" placeholder="Descrição" class="col-span-5 bg-slate-950 border border-white/10 rounded-lg px-2.5 py-2 text-xs focus:outline-none focus:border-blue-500">
+      <select onchange="upItem(${i},'tipo',this.value)" class="col-span-2 bg-slate-950 border border-white/10 rounded-lg px-2 py-2 text-xs focus:outline-none focus:border-blue-500">
+        <option value="peca" ${it.tipo==='peca'?'selected':''}>Peça</option><option value="servico" ${it.tipo==='servico'?'selected':''}>Serviço</option></select>
+      <input type="number" step="1" min="1" value="${it.qtd}" oninput="upItem(${i},'qtd',this.value)" class="col-span-1 bg-slate-950 border border-white/10 rounded-lg px-2 py-2 text-xs focus:outline-none focus:border-blue-500">
+      <input type="number" step="0.01" value="${it.valor}" oninput="upItem(${i},'valor',this.value)" placeholder="Valor" class="col-span-3 bg-slate-950 border border-white/10 rounded-lg px-2.5 py-2 text-xs focus:outline-none focus:border-blue-500">
+      <button type="button" onclick="delItem(${i})" class="col-span-1 text-slate-600 hover:text-red-400 text-lg">&times;</button>
+    </div>`).join('') : `<p class="text-xs text-slate-600 py-2">Nenhum item adicionado.</p>`;
+  totalItens();
+}
+function salvarOS(ev,id){
+  ev.preventDefault();
+  const dados={ clienteId:document.getElementById('f-cli').value, equipamentoId:document.getElementById('f-eq').value,
+    defeito:document.getElementById('f-def').value, diagnostico:document.getElementById('f-diag').value,
+    tecnico:document.getElementById('f-tec').value, status:document.getElementById('f-st').value,
+    abertura:document.getElementById('f-ab').value, entrega:document.getElementById('f-ent').value,
+    garantiaDias:parseInt(document.getElementById('f-gar').value)||0, itens:itensTmp.filter(i=>i.desc.trim()) };
+  if(dados.status==='entregue' && !dados.entrega) dados.entrega = hoje();
+  if(id){ Object.assign(DB.os.find(o=>o.id===id), dados); }
+  else { DB.contador++; DB.os.push({id:uid(), numero:DB.contador, ...dados}); }
+  salvar(); fecharModal(); irPara(TELA==='dashboard'?'dashboard':'os');
+}
+function excluirOS(id){
+  if(!confirm('Excluir esta ordem de serviço?')) return;
+  DB.os = DB.os.filter(o=>o.id!==id); salvar(); fecharModal(); irPara('os');
+}
+
+/* ══════════ CLIENTES ══════════ */
+function vClientes(){
+  document.getElementById('conteudo').innerHTML = `
+  <div class="flex justify-between items-center mb-5">
+    <input oninput="filtrarCli(this.value)" placeholder="Buscar cliente..." class="bg-slate-950 border border-white/10 rounded-lg px-3.5 py-2 text-sm w-64 focus:outline-none focus:border-blue-500">
+    ${btnP('+ Novo cliente','formCliente(null)')}
+  </div>
+  <div id="grid-cli" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>`;
+  filtrarCli('');
+}
+function filtrarCli(q){
+  q=q.toLowerCase();
+  const l = DB.clientes.filter(c=>c.nome.toLowerCase().includes(q)||(c.telefone||'').includes(q)||(c.doc||'').includes(q));
+  document.getElementById('grid-cli').innerHTML = l.length ? l.map(c=>{
+    const os = DB.os.filter(o=>o.clienteId===c.id);
+    const gasto = os.filter(o=>o.status==='entregue').reduce((s,o)=>s+totalOS(o),0);
+    return `<div class="card rounded-2xl p-5 hover:border-white/15 transition">
+      <div class="flex items-start gap-3 mb-4">
+        <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-500/25 to-indigo-500/25 border border-white/10 flex items-center justify-center font-bold text-blue-300 shrink-0">${esc(c.nome[0])}</div>
+        <div class="min-w-0 flex-1">
+          <p class="font-semibold text-white truncate">${esc(c.nome)}</p>
+          <p class="text-xs text-slate-500 truncate">${esc(c.doc||'sem documento')}</p>
+        </div>
+      </div>
+      <div class="space-y-1.5 text-xs text-slate-400 mb-4">
+        <p>📞 ${esc(c.telefone||'—')}</p>
+        <p class="truncate">✉️ ${esc(c.email||'—')}</p>
+        <p class="truncate">📍 ${esc(c.endereco||'—')}</p>
+      </div>
+      <div class="flex items-center gap-4 pt-3 border-t border-white/5 text-xs">
+        <span class="text-slate-500">OS: <b class="text-white">${os.length}</b></span>
+        <span class="text-slate-500">Total: <b class="text-emerald-400">${brl(gasto)}</b></span>
+        <button onclick="formCliente('${c.id}')" class="ml-auto text-blue-400 hover:text-blue-300">Editar</button>
+      </div>
+    </div>`;}).join('') : vazio('Nenhum cliente','Cadastre o primeiro cliente para começar.', btnP('+ Novo cliente','formCliente(null)'));
+}
+function formCliente(id){
+  const c = id ? DB.clientes.find(x=>x.id===id) : {nome:'',telefone:'',email:'',doc:'',endereco:''};
+  abrirModal(`
+  <div class="px-6 py-5 border-b border-white/5 flex items-center justify-between">
+    <p class="font-bold text-white">${id?'Editar cliente':'Novo cliente'}</p>
+    <button onclick="fecharModal()" class="text-slate-500 hover:text-white text-xl leading-none">&times;</button>
+  </div>
+  <form onsubmit="salvarCliente(event,'${id||''}')" class="p-6 space-y-4">
+    ${campoTxt('c-nome','Nome / Razão social', c.nome)}
+    <div class="grid grid-cols-2 gap-4">${campoTxt('c-tel','Telefone', c.telefone)}${campoTxt('c-doc','CPF / CNPJ', c.doc)}</div>
+    ${campoTxt('c-mail','E-mail', c.email)}
+    ${campoTxt('c-end','Endereço', c.endereco)}
+    <div class="flex gap-3 pt-2">
+      <button class="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 text-white font-semibold text-sm rounded-lg py-2.5">Salvar</button>
+      ${id?`<button type="button" onclick="excluirCliente('${id}')" class="px-5 bg-red-900/40 hover:bg-red-900/70 text-red-300 text-sm rounded-lg">Excluir</button>`:''}
+    </div>
+  </form>`);
+}
+function salvarCliente(ev,id){
+  ev.preventDefault();
+  const d={nome:document.getElementById('c-nome').value.trim(),telefone:document.getElementById('c-tel').value,
+    doc:document.getElementById('c-doc').value,email:document.getElementById('c-mail').value,endereco:document.getElementById('c-end').value};
+  if(!d.nome) return alert('Informe o nome do cliente.');
+  if(id) Object.assign(DB.clientes.find(c=>c.id===id), d);
+  else DB.clientes.push({id:uid(), criadoEm:hoje(), ...d});
+  salvar(); fecharModal(); vClientes();
+}
+function excluirCliente(id){
+  if(DB.os.some(o=>o.clienteId===id)) return alert('Este cliente possui ordens de serviço vinculadas e não pode ser excluído.');
+  if(!confirm('Excluir este cliente?')) return;
+  DB.clientes=DB.clientes.filter(c=>c.id!==id);
+  DB.equipamentos=DB.equipamentos.filter(e=>e.clienteId!==id);
+  salvar(); fecharModal(); vClientes();
+}
+
+/* ══════════ EQUIPAMENTOS ══════════ */
+function vEquipamentos(){
+  document.getElementById('conteudo').innerHTML = `
+  <div class="flex justify-end mb-5">${btnP('+ Novo equipamento','formEquip(null)')}</div>
+  <div class="card rounded-2xl overflow-hidden">
+  ${DB.equipamentos.length?`<div class="overflow-x-auto"><table class="w-full text-sm">
+    <thead><tr class="text-[11px] uppercase tracking-wide text-slate-500 border-b border-white/5">
+      <th class="text-left font-medium px-5 py-3">Equipamento</th><th class="text-left font-medium px-5 py-3">Cliente</th>
+      <th class="text-left font-medium px-5 py-3 hidden md:table-cell">Nº de série</th>
+      <th class="text-center font-medium px-5 py-3">Atendimentos</th><th class="px-5 py-3"></th></tr></thead><tbody>
+    ${DB.equipamentos.map(e=>`<tr class="border-b border-white/5 hover:bg-white/[.03]">
+      <td class="px-5 py-3"><p class="text-white font-medium">${esc(e.tipo)} ${esc(e.marca)}</p><p class="text-xs text-slate-500">${esc(e.modelo||'—')}</p></td>
+      <td class="px-5 py-3 text-slate-300">${esc(cliente(e.clienteId).nome)}</td>
+      <td class="px-5 py-3 font-mono text-xs text-slate-500 hidden md:table-cell">${esc(e.serie||'—')}</td>
+      <td class="px-5 py-3 text-center text-slate-300">${DB.os.filter(o=>o.equipamentoId===e.id).length}</td>
+      <td class="px-5 py-3 text-right"><button onclick="formEquip('${e.id}')" class="text-xs text-blue-400 hover:text-blue-300">Editar</button></td>
+    </tr>`).join('')}</tbody></table></div>`
+  : vazio('Nenhum equipamento','Cadastre os aparelhos dos seus clientes.', btnP('+ Novo equipamento','formEquip(null)'))}
+  </div>`;
+}
+function formEquip(id){
+  const e = id ? DB.equipamentos.find(x=>x.id===id) : {clienteId:DB.clientes[0]?.id||'',tipo:'',marca:'',modelo:'',serie:'',obs:''};
+  abrirModal(`
+  <div class="px-6 py-5 border-b border-white/5 flex items-center justify-between">
+    <p class="font-bold text-white">${id?'Editar equipamento':'Novo equipamento'}</p>
+    <button onclick="fecharModal()" class="text-slate-500 hover:text-white text-xl leading-none">&times;</button>
+  </div>
+  <form onsubmit="salvarEquip(event,'${id||''}')" class="p-6 space-y-4">
+    ${campoSel('e-cli','Cliente', DB.clientes.map(c=>[c.id,c.nome]), e.clienteId)}
+    <div class="grid grid-cols-2 gap-4">${campoTxt('e-tipo','Tipo (Notebook, Celular...)', e.tipo)}${campoTxt('e-marca','Marca', e.marca)}</div>
+    <div class="grid grid-cols-2 gap-4">${campoTxt('e-mod','Modelo', e.modelo)}${campoTxt('e-serie','Nº de série / IMEI', e.serie)}</div>
+    ${campoTxt('e-obs','Observações / acessórios entregues', e.obs,'textarea')}
+    <div class="flex gap-3 pt-2">
+      <button class="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 text-white font-semibold text-sm rounded-lg py-2.5">Salvar</button>
+      ${id?`<button type="button" onclick="excluirEquip('${id}')" class="px-5 bg-red-900/40 hover:bg-red-900/70 text-red-300 text-sm rounded-lg">Excluir</button>`:''}
+    </div>
+  </form>`);
+}
+function salvarEquip(ev,id){
+  ev.preventDefault();
+  const d={clienteId:document.getElementById('e-cli').value,tipo:document.getElementById('e-tipo').value.trim(),
+    marca:document.getElementById('e-marca').value,modelo:document.getElementById('e-mod').value,
+    serie:document.getElementById('e-serie').value,obs:document.getElementById('e-obs').value};
+  if(!d.tipo) return alert('Informe o tipo do equipamento.');
+  if(id) Object.assign(DB.equipamentos.find(e=>e.id===id), d); else DB.equipamentos.push({id:uid(), ...d});
+  salvar(); fecharModal(); vEquipamentos();
+}
+function excluirEquip(id){
+  if(DB.os.some(o=>o.equipamentoId===id)) return alert('Equipamento com OS vinculada não pode ser excluído.');
+  if(!confirm('Excluir este equipamento?')) return;
+  DB.equipamentos=DB.equipamentos.filter(e=>e.id!==id); salvar(); fecharModal(); vEquipamentos();
+}
+
+/* ══════════ GARANTIAS ══════════ */
+function vGarantias(){
+  const l = DB.os.map(o=>({o,g:garantiaOS(o)})).filter(x=>x.g).sort((a,b)=>a.g.rest-b.g.rest);
+  const ativas=l.filter(x=>x.g.ativa), venc=l.filter(x=>!x.g.ativa), alerta=ativas.filter(x=>x.g.alerta);
+  document.getElementById('conteudo').innerHTML = `
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+    ${kpi('Garantias ativas', ativas.length, 'dentro do prazo', 'bg-emerald-500/15 text-emerald-400', IC.shield)}
+    ${kpi('Vencendo em 15 dias', alerta.length, 'requer atenção', 'bg-amber-500/15 text-amber-400', IC.shield)}
+    ${kpi('Vencidas', venc.length, 'fora do prazo de cobertura', 'bg-slate-500/15 text-slate-400', IC.shield)}
+  </div>
+  <div class="card rounded-2xl overflow-hidden">
+  ${l.length?`<div class="overflow-x-auto"><table class="w-full text-sm">
+    <thead><tr class="text-[11px] uppercase tracking-wide text-slate-500 border-b border-white/5">
+      <th class="text-left font-medium px-5 py-3">OS</th><th class="text-left font-medium px-5 py-3">Cliente</th>
+      <th class="text-left font-medium px-5 py-3 hidden md:table-cell">Equipamento</th>
+      <th class="text-left font-medium px-5 py-3">Entrega</th><th class="text-left font-medium px-5 py-3">Vence em</th>
+      <th class="text-left font-medium px-5 py-3">Situação</th><th class="px-5 py-3"></th></tr></thead><tbody>
+    ${l.map(({o,g})=>`<tr class="border-b border-white/5 hover:bg-white/[.03]">
+      <td class="px-5 py-3 font-mono text-xs text-slate-400">#${o.numero}</td>
+      <td class="px-5 py-3 text-white">${esc(cliente(o.clienteId).nome)}</td>
+      <td class="px-5 py-3 text-slate-400 hidden md:table-cell">${esc(equipTxt(o.equipamentoId))}</td>
+      <td class="px-5 py-3 text-slate-400 text-xs">${dataBR(o.entrega)}</td>
+      <td class="px-5 py-3 text-slate-300 text-xs">${dataBR(g.fim)} <span class="text-slate-600">(${o.garantiaDias}d)</span></td>
+      <td class="px-5 py-3">${ g.ativa
+        ? `<span class="text-[10px] font-semibold px-2 py-1 rounded-md border ${g.alerta?'bg-amber-500/15 text-amber-300 border-amber-500/25':'bg-emerald-500/15 text-emerald-300 border-emerald-500/25'}">${g.rest} dias restantes</span>`
+        : `<span class="text-[10px] font-semibold px-2 py-1 rounded-md border bg-slate-500/15 text-slate-400 border-slate-500/25">Vencida há ${-g.rest} dias</span>`}</td>
+      <td class="px-5 py-3 text-right"><button onclick="imprimirOS('${o.id}')" class="text-xs text-blue-400 hover:text-blue-300">Termo</button></td>
+    </tr>`).join('')}</tbody></table></div>`
+  : vazio('Nenhuma garantia registrada','As garantias aparecem aqui quando uma OS é marcada como entregue.')}
+  </div>`;
+}
+
+/* ══════════ FINANCEIRO ══════════ */
+function vFinanceiro(){
+  const ent = DB.os.filter(o=>o.status==='entregue');
+  const mes = hoje().slice(0,7);
+  const fatMes = ent.filter(o=>(o.entrega||'').startsWith(mes)).reduce((s,o)=>s+totalOS(o),0);
+  const fatTot = ent.reduce((s,o)=>s+totalOS(o),0);
+  const tick = ent.length? fatTot/ent.length : 0;
+  const pecas = ent.reduce((s,o)=>s+o.itens.filter(i=>i.tipo==='peca').reduce((a,i)=>a+i.qtd*i.valor,0),0);
+  const servs = fatTot - pecas;
+  const prev = DB.os.filter(o=>!['entregue','cancelado'].includes(o.status)).reduce((s,o)=>s+totalOS(o),0);
+  const rank = {};
+  ent.forEach(o=>{ const n=cliente(o.clienteId).nome; rank[n]=(rank[n]||0)+totalOS(o); });
+  const top = Object.entries(rank).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+  document.getElementById('conteudo').innerHTML = `
+  <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+    ${kpi('Faturamento do mês', brl(fatMes), ent.filter(o=>(o.entrega||'').startsWith(mes)).length+' OS entregues','bg-emerald-500/15 text-emerald-400',IC.money)}
+    ${kpi('Faturamento total', brl(fatTot), ent.length+' OS concluídas','bg-blue-500/15 text-blue-400',IC.money)}
+    ${kpi('Ticket médio', brl(tick), 'por ordem entregue','bg-purple-500/15 text-purple-400',IC.money)}
+    ${kpi('A faturar', brl(prev), 'OS ainda em andamento','bg-amber-500/15 text-amber-400',IC.wrench)}
+  </div>
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <div class="card rounded-2xl p-5">
+      <p class="font-semibold text-white text-sm mb-4">Composição do faturamento</p>
+      <div style="height:230px"><canvas id="chf"></canvas></div>
+      <div class="grid grid-cols-2 gap-3 mt-4 text-xs">
+        <div class="bg-slate-950/50 rounded-lg p-3"><p class="text-slate-500">Peças</p><p class="font-bold text-white text-base">${brl(pecas)}</p></div>
+        <div class="bg-slate-950/50 rounded-lg p-3"><p class="text-slate-500">Serviços</p><p class="font-bold text-white text-base">${brl(servs)}</p></div>
+      </div>
+    </div>
+    <div class="card rounded-2xl p-5">
+      <p class="font-semibold text-white text-sm mb-4">Principais clientes</p>
+      ${top.length? top.map(([n,v],i)=>`
+        <div class="flex items-center gap-3 py-2.5 ${i<top.length-1?'border-b border-white/5':''}">
+          <span class="w-6 h-6 rounded-lg bg-white/5 text-[11px] flex items-center justify-center text-slate-400 font-bold">${i+1}</span>
+          <span class="text-sm text-slate-200 truncate flex-1">${esc(n)}</span>
+          <span class="text-sm font-semibold text-emerald-400">${brl(v)}</span>
+        </div>`).join('') : '<p class="text-xs text-slate-600 py-4">Sem dados ainda.</p>'}
+    </div>
+  </div>`;
+  new Chart(document.getElementById('chf'),{type:'doughnut',
+    data:{labels:['Peças','Serviços'],datasets:[{data:[pecas,servs],backgroundColor:['#3b82f6','#10b981'],borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'65%',
+      plugins:{legend:{position:'bottom',labels:{color:'#94a3b8',font:{size:11},boxWidth:10,padding:14}},
+      tooltip:{callbacks:{label:c=>c.label+': '+brl(c.raw)}}}}});
+}
+
+/* ══════════ CONFIGURAÇÕES ══════════ */
+function vConfig(){
+  const e=DB.empresa, u=DB.usuario;
+  document.getElementById('conteudo').innerHTML = `
+  <div class="max-w-3xl space-y-5">
+    <div class="card rounded-2xl p-6">
+      <p class="font-semibold text-white mb-1">Dados da empresa</p>
+      <p class="text-xs text-slate-500 mb-5">Aparecem no sistema e nos comprovantes impressos.</p>
+      <div class="space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">${campoTxt('cf-nome','Nome da empresa',e.nome)}${campoTxt('cf-cnpj','CNPJ',e.cnpj)}</div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">${campoTxt('cf-tel','Telefone',e.telefone)}${campoTxt('cf-mail','E-mail',e.email)}</div>
+        ${campoTxt('cf-end','Endereço',e.endereco)}
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1.5">Logotipo</label>
+          <div class="flex items-center gap-4">
+            <div class="w-16 h-16 rounded-xl bg-slate-950 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+              ${e.logo?`<img src="${e.logo}" class="w-full h-full object-contain">`:'<span class="text-[10px] text-slate-600">sem logo</span>'}
+            </div>
+            <div>
+              <input type="file" accept="image/*" onchange="subirLogo(this)" class="text-xs text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-white/10 file:text-slate-200 file:text-xs">
+              ${e.logo?`<button onclick="DB.empresa.logo='';salvar();vConfig();aplicarMarca()" class="block mt-2 text-[11px] text-red-400 hover:text-red-300">Remover logo</button>`:''}
+            </div>
+          </div>
+        </div>
+        ${campoTxt('cf-termos','Termos de garantia (impressos no comprovante)',e.termos,'textarea')}
+        <button onclick="salvarEmpresa()" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 text-white font-semibold text-sm rounded-lg px-6 py-2.5">Salvar alterações</button>
+      </div>
+    </div>
+
+    <div class="card rounded-2xl p-6">
+      <p class="font-semibold text-white mb-1">Acesso ao sistema</p>
+      <p class="text-xs text-slate-500 mb-5">Credenciais de login da equipe.</p>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        ${campoTxt('cf-unome','Nome exibido',u.nome)}${campoTxt('cf-user','Usuário',u.user)}${campoTxt('cf-senha','Senha',u.senha)}
+      </div>
+      <button onclick="salvarUsuario()" class="mt-4 bg-white/10 hover:bg-white/15 text-white font-semibold text-sm rounded-lg px-6 py-2.5">Atualizar acesso</button>
+    </div>
+
+    <div class="rounded-2xl p-6 bg-amber-500/8 border border-amber-500/20">
+      <p class="font-semibold text-amber-200 mb-1 text-sm">Versão de demonstração</p>
+      <p class="text-xs text-amber-200/70 leading-relaxed">
+        Esta é uma versão de avaliação. Os dados ficam salvos apenas neste navegador e o comprovante impresso não substitui documento fiscal.
+        A emissão de NF-e é liberada na versão contratada. Validade desta avaliação: <b>${dataBR(LIC.expiraEm)}</b>.
+      </p>
+    </div>
+  </div>`;
+}
+function subirLogo(inp){
+  const f=inp.files[0]; if(!f) return;
+  const r=new FileReader(); r.onload=()=>{ DB.empresa.logo=r.result; salvar(); vConfig(); aplicarMarca(); }; r.readAsDataURL(f);
+}
+function salvarEmpresa(){
+  Object.assign(DB.empresa,{nome:document.getElementById('cf-nome').value,cnpj:document.getElementById('cf-cnpj').value,
+    telefone:document.getElementById('cf-tel').value,email:document.getElementById('cf-mail').value,
+    endereco:document.getElementById('cf-end').value,termos:document.getElementById('cf-termos').value});
+  salvar(); aplicarMarca(); alert('Dados da empresa atualizados.');
+}
+function salvarUsuario(){
+  Object.assign(DB.usuario,{nome:document.getElementById('cf-unome').value,
+    user:document.getElementById('cf-user').value.trim(),senha:document.getElementById('cf-senha').value});
+  salvar(); document.getElementById('avatar').textContent=(DB.usuario.nome||'A')[0].toUpperCase();
+  alert('Credenciais atualizadas.');
+}
+
+/* ══════════ IMPRESSÃO / COMPROVANTE ══════════ */
+function imprimirOS(id){
+  const o = DB.os.find(x=>x.id===id); if(!o) return;
+  const c = cliente(o.clienteId), eq = equip(o.equipamentoId), emp = DB.empresa;
+  const pecas = o.itens.filter(i=>i.tipo==='peca'), servs = o.itens.filter(i=>i.tipo==='servico');
+  const g = garantiaOS(o);
+  const linha = i => `<tr><td style="padding:7px 0;border-bottom:1px solid #eee">${esc(i.desc)}</td>
+    <td style="padding:7px 0;border-bottom:1px solid #eee;text-align:center;width:50px">${i.qtd}</td>
+    <td style="padding:7px 0;border-bottom:1px solid #eee;text-align:right;width:110px">${brl(i.valor)}</td>
+    <td style="padding:7px 0;border-bottom:1px solid #eee;text-align:right;width:110px;font-weight:600">${brl(i.qtd*i.valor)}</td></tr>`;
+
+  document.getElementById('recibo-area').innerHTML = `
+  <div style="max-width:760px;margin:0 auto;padding:34px;color:#111;font-size:13px;line-height:1.5">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #111;padding-bottom:16px;margin-bottom:22px">
+      <div style="display:flex;gap:14px;align-items:center">
+        ${emp.logo?`<img src="${emp.logo}" style="width:58px;height:58px;object-fit:contain">`:''}
+        <div>
+          <div style="font-size:19px;font-weight:800">${esc(emp.nome)}</div>
+          <div style="font-size:11px;color:#555;margin-top:3px">
+            ${esc(emp.cnpj)} · ${esc(emp.telefone)}<br>${esc(emp.endereco)} · ${esc(emp.email)}
+          </div>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:11px;letter-spacing:1px;color:#666;text-transform:uppercase">Ordem de Serviço</div>
+        <div style="font-size:26px;font-weight:800;line-height:1.1">#${o.numero}</div>
+        <div style="font-size:11px;color:#666">${dataBR(o.abertura)}</div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:22px;margin-bottom:20px">
+      <div style="flex:1;background:#f7f7f8;border-radius:8px;padding:13px">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:#777;margin-bottom:6px">Cliente</div>
+        <div style="font-weight:700">${esc(c.nome)}</div>
+        <div style="font-size:11.5px;color:#555;margin-top:3px">${esc(c.doc||'')}<br>${esc(c.telefone||'')} · ${esc(c.email||'')}<br>${esc(c.endereco||'')}</div>
+      </div>
+      <div style="flex:1;background:#f7f7f8;border-radius:8px;padding:13px">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:#777;margin-bottom:6px">Equipamento</div>
+        <div style="font-weight:700">${esc(eq.tipo)} ${esc(eq.marca)} ${esc(eq.modelo)}</div>
+        <div style="font-size:11.5px;color:#555;margin-top:3px">Série/IMEI: ${esc(eq.serie||'—')}<br>${esc(eq.obs||'')}</div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:16px">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:#777;margin-bottom:4px">Defeito relatado</div>
+      <div style="border-left:3px solid #ddd;padding-left:11px">${esc(o.defeito||'—')}</div>
+    </div>
+    ${o.diagnostico?`<div style="margin-bottom:20px">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:#777;margin-bottom:4px">Laudo técnico</div>
+      <div style="border-left:3px solid #ddd;padding-left:11px">${esc(o.diagnostico)}</div>
+    </div>`:''}
+
+    <table style="width:100%;border-collapse:collapse;margin-bottom:18px">
+      <thead><tr style="border-bottom:2px solid #111">
+        <th style="text-align:left;padding:7px 0;font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:#666">Descrição</th>
+        <th style="text-align:center;padding:7px 0;font-size:10px;text-transform:uppercase;color:#666">Qtd</th>
+        <th style="text-align:right;padding:7px 0;font-size:10px;text-transform:uppercase;color:#666">Unit.</th>
+        <th style="text-align:right;padding:7px 0;font-size:10px;text-transform:uppercase;color:#666">Total</th>
+      </tr></thead><tbody>
+      ${pecas.length?`<tr><td colspan="4" style="padding:9px 0 3px;font-size:10px;font-weight:700;color:#666;text-transform:uppercase">Peças</td></tr>${pecas.map(linha).join('')}`:''}
+      ${servs.length?`<tr><td colspan="4" style="padding:9px 0 3px;font-size:10px;font-weight:700;color:#666;text-transform:uppercase">Serviços</td></tr>${servs.map(linha).join('')}`:''}
+      </tbody></table>
+
+    <div style="display:flex;justify-content:flex-end;margin-bottom:24px">
+      <div style="background:#111;color:#fff;border-radius:8px;padding:11px 22px;text-align:right">
+        <div style="font-size:10px;opacity:.75;text-transform:uppercase;letter-spacing:.6px">Valor total</div>
+        <div style="font-size:22px;font-weight:800">${brl(totalOS(o))}</div>
+      </div>
+    </div>
+
+    <div style="background:#f7f7f8;border-radius:8px;padding:15px;margin-bottom:22px">
+      <div style="font-weight:700;margin-bottom:6px">Termo de Garantia — ${o.garantiaDias} dias</div>
+      ${g?`<div style="font-size:11.5px;color:#333;margin-bottom:7px">
+        Válida de <b>${dataBR(o.entrega)}</b> até <b>${dataBR(g.fim)}</b> ${g.ativa?`<span style="color:#059669">(ativa · ${g.rest} dias restantes)</span>`:'<span style="color:#999">(vencida)</span>'}
+      </div>`:`<div style="font-size:11.5px;color:#666;margin-bottom:7px">A contagem inicia na data de entrega do equipamento.</div>`}
+      <div style="font-size:11px;color:#555;line-height:1.55">${esc(emp.termos||'')}</div>
+    </div>
+
+    <div style="display:flex;gap:50px;margin-top:52px">
+      <div style="flex:1;text-align:center;border-top:1px solid #333;padding-top:7px;font-size:11px">${esc(emp.nome)}<br><span style="color:#777">Responsável técnico${o.tecnico?' — '+esc(o.tecnico):''}</span></div>
+      <div style="flex:1;text-align:center;border-top:1px solid #333;padding-top:7px;font-size:11px">${esc(c.nome)}<br><span style="color:#777">Cliente</span></div>
+    </div>
+
+    <div style="margin-top:26px;padding-top:11px;border-top:1px solid #eee;text-align:center;font-size:9.5px;color:#999">
+      Documento emitido em ${new Date().toLocaleString('pt-BR')} · Comprovante de serviço — não substitui documento fiscal.
+    </div>
+  </div>`;
+  document.getElementById('recibo-area').classList.remove('hidden');
+  setTimeout(()=>{ window.print(); document.getElementById('recibo-area').classList.add('hidden'); }, 120);
+}
+
+/* ══════════ Modal ══════════ */
+function abrirModal(html){ document.getElementById('modal-box').innerHTML=html; document.getElementById('modal').classList.remove('hidden'); }
+function fecharModal(){ document.getElementById('modal').classList.add('hidden'); }
+document.getElementById('modal').addEventListener('click', e=>{ if(e.target.id==='modal') fecharModal(); });
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape'){ fecharModal(); }
+  // Atalho secreto do fornecedor: Ctrl + Shift + K
+  if(e.ctrlKey && e.shiftKey && (e.key==='K'||e.key==='k')){ e.preventDefault(); abrirAdmin(); }
+});
+
+/* ══════════ Boot ══════════ */
+(async function(){
+  const lic = await verificarLicenca();
+  if(!lic.ok){ bloquear(lic.msg); return; }
+  carregar();
+  if(sessionStorage.getItem(K+'_sess')==='1') entrar();
+  else document.getElementById('tela-login').classList.remove('hidden');
+})();
+</script>
+</body>
+</html>
